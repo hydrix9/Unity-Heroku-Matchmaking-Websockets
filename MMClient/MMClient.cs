@@ -275,17 +275,8 @@ public class MMClient : MonoBehaviour {
             mmcodes.get.ToString() + wantedGameType.ToString() + wantedGameMap.ToString() + Ext.PadInt(wantedMaxPlayers, 3) + wantedSortType.ToString() + NetworkInterface.serverGUID //send what we specified. playermax is padded to always be 3 characters
         );
     }
-
-    /* SERVER sent fetch code below. On client create code, there is no asking for specific sorting. The IP is also deduced from server for security. Therefore, it is the same as below except without sending IP and sorting data.
-     * 
-     * first char is mmcode, second is game type (if any), third is game map (if any), next three chars are number of players max, next three are number of players,
-     * then there's a char for the sorting type. Whether this char is uppercase or lowercase determines if it's uppercase or lowercase
-     * the possible options are N number players, M max players
-     * then there's the ip, port, game host player name, game name, and description which are separated by delimeter
-     * 
-     */
-
-        /*
+    
+    /*
     public void CreateGame(char gameType, char gameMap, int playersMax, int startPlayers, string port, string playerName, string gameName, string description)
     {
         string sends = mmcodes.create.ToString() + gameType.ToString() + gameMap.ToString() + Ext.PadInt(playersMax, 3) + Ext.PadInt(startPlayers, 3) + 
