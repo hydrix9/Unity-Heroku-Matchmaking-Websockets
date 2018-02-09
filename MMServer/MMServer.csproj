@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <StartupObject></StartupObject>
+    <ApplicationIcon />
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <WarningLevel>3</WarningLevel>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+
+
+  <ItemGroup>
+    <Reference Include="MongoDB.Bson">
+      <HintPath>libraries\MongoDB.Bson.dll</HintPath>
+    </Reference>
+    <Reference Include="MongoDB.Driver">
+      <HintPath>libraries\MongoDB.Driver.dll</HintPath>
+    </Reference>
+    <Reference Include="MongoDB.Driver.Core">
+      <HintPath>libraries\MongoDB.Driver.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="websocket-sharp">
+      <HintPath>libraries\websocket-sharp.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>
