@@ -398,6 +398,90 @@ public class MMClient : MonoBehaviour {
             onReceiveGames(new Dictionary<string, listing>(listings)); //pass copy to avoid read/write errors to OfflineGUI
     }
 
+    
+    
+    /*
+    -----------
+    Example of how to handle the above code
+    -----------
+    
+    Dictionary<string, RectTransform> listingObjMap = new Dictionary<string, RectTransform>();
+
+    //from MMClient.onReceiveGames
+    private void ReceiveGames(Dictionary<string, listing> listings)
+    {
+        //for reference-     public listing(DateTime _date, char _type, char _map, int _max, int _players, string _ip, string _port, string _playername, string _gamename, string _description)
+
+        //list games
+
+
+        //remove old
+        foreach(KeyValuePair<string,RectTransform> entry in listingObjMap)
+        {
+            if(!listings.ContainsKey(entry.Key)) //if updated list in listings doesn't have... remove it and it's object
+            {
+                GameObject.Destroy(entry.Value.gameObject); //delete listings obj
+                listingObjMap.Remove(entry.Key); //remove from map
+            }
+        }
+        
+
+        int i = 0;
+
+        foreach(KeyValuePair<string, listing> entry in listings)
+        {
+            RectTransform temp;
+            if(listingObjMap.ContainsKey(entry.Key))
+            {
+                temp = listingObjMap[entry.Key]; //working with already created... merely overwrite values
+            } else
+            {
+                //doesn't exist, create...
+                temp = ((GameObject)(Ext.Instantiate(listingObject, listingContentArea))).GetComponent<RectTransform>();
+
+                if (oneClickJoinListing)
+                    temp.GetChild(8).GetComponent<Button>().onClick.AddListener(delegate { JoinGame(entry.Value); }); //add button function
+                else
+                    temp.GetChild(8).GetComponent<Button>().onClick.AddListener(delegate { SetSelectedGame(entry.Value, temp); }); //add button function
+
+                listingObjMap.Add(entry.Key, temp); //add to reference
+
+            }
+
+            temp.GetChild(0).GetComponent<Text>().text = entry.Value.type.ToString(); //set 
+            temp.GetChild(1).GetComponent<Text>().text = entry.Value.map.ToString(); //set
+            temp.GetChild(2).GetComponent<Text>().text = entry.Value.max.ToString(); //set 
+            temp.GetChild(3).GetComponent<Text>().text = entry.Value.players.ToString(); //set 
+            temp.GetChild(4).GetComponent<Text>().text = entry.Value.ip; //set 
+            temp.GetChild(5).GetComponent<Text>().text = entry.Value.port; //set 
+            temp.GetChild(6).GetComponent<Text>().text = entry.Value.playername; //set 
+            temp.GetChild(7).GetComponent<Text>().text = entry.Value.gamename; //set 
+            temp.GetChild(7).GetComponent<Text>().text = entry.Value.description; //set 
+
+            if (i % 2 == 0) //every other one
+                temp.GetChild(8).GetComponent<Image>().color = stripeColor; //make it striped
+            else
+                temp.GetChild(8).GetComponent<Image>().color = normalListingColor; // make it normal
+
+            temp.anchoredPosition = listingObject.GetComponent<RectTransform>().anchoredPosition; //reset for lazy calcs...
+
+            temp.position += new Vector3(0, i * (-listingObject.GetComponent<RectTransform>().rect.height - listingEntryPadding), 0);
+            temp.gameObject.SetActive(true);
+
+
+
+
+            i++;
+        }
+        
+
+
+        listingContentArea.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, listings.Count * (listingObject.GetComponent<RectTransform>().rect.height + listingEntryPadding));
+
+    }
+    */
+    
+    
 
 
 } //end class
