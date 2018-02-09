@@ -272,14 +272,14 @@ public class MMClient : MonoBehaviour {
     public void FetchGames()
     {
         ws.Send(
-            mmcodes.get.ToString() + wantedGameType.ToString() + wantedGameMap.ToString() + Ext.PadInt(wantedMaxPlayers, 3) + wantedSortType.ToString() + NetworkInterface.serverGUID //send what we specified. playermax is padded to always be 3 characters
+            mmcodes.get.ToString() + wantedGameType.ToString() + wantedGameMap.ToString() + PadInt(wantedMaxPlayers, 3) + wantedSortType.ToString() + NetworkInterface.serverGUID //send what we specified. playermax is padded to always be 3 characters
         );
     }
     
     /*
     public void CreateGame(char gameType, char gameMap, int playersMax, int startPlayers, string port, string playerName, string gameName, string description)
     {
-        string sends = mmcodes.create.ToString() + gameType.ToString() + gameMap.ToString() + Ext.PadInt(playersMax, 3) + Ext.PadInt(startPlayers, 3) + 
+        string sends = mmcodes.create.ToString() + gameType.ToString() + gameMap.ToString() + PadInt(playersMax, 3) + PadInt(startPlayers, 3) + 
             port
             //NetworkInterface.serverGUID
             + delimeters.screate + playerName + delimeters.screate + gameName + delimeters.screate + description;
@@ -332,7 +332,7 @@ public class MMClient : MonoBehaviour {
     //update the serialized version that's being sent to server
     public void SerializeHostedGame()
     {
-        serializedGame = mmcodes.create.ToString() + hostedGame.type.ToString() + hostedGame.map.ToString() + Ext.PadInt(int.Parse(hostedGame.max), 3) + Ext.PadInt(int.Parse(hostedGame.players), 3) +
+        serializedGame = mmcodes.create.ToString() + hostedGame.type.ToString() + hostedGame.map.ToString() + PadInt(int.Parse(hostedGame.max), 3) + PadInt(int.Parse(hostedGame.players), 3) +
             hostedGame.port
             //NetworkInterface.serverGUID
             + delimeters.screate + hostedGame.playername + delimeters.screate + hostedGame.gamename + delimeters.screate + hostedGame.description;
@@ -482,6 +482,26 @@ public class MMClient : MonoBehaviour {
     */
     
     
+    
+    
+    
+    
+        /// <summary>
+    /// return a number as a string padded with zeros to fit a certain length for networking
+    /// </summary>
+    /// <param name="number"></param>
+    /// <param name="length"></param>
+    /// <returns></returns>
+    public string PadInt(int number, int length) {
+        string returns = number.ToString();
+
+        while (returns.Length < length)
+        {
+            returns = "0" + returns;
+        }
+        return returns;
+
+    }
 
 
 } //end class
