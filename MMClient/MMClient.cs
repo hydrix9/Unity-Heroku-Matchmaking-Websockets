@@ -7,6 +7,77 @@ using UnityEngine;
 using WebSocketSharp;
 using WebSocketSharp.Net;
 
+public struct listing
+{
+    public DateTime date;
+    public char type, map;
+    public string max, players;
+    public string ip, port, playername, gamename, description;
+    public string uuid;
+
+    public listing(DateTime _date, char _type, char _map, string _max, string _players, string _ip, string _port, string _playername, string _gamename, string _description, string _uuid)
+    {
+        date = _date; type = _type; map = _map; max = _max; players = _players; ip = _ip; port = _port; playername = _playername; gamename = _gamename; description = _description; uuid = _uuid;
+    }
+
+    public override string ToString()
+    {
+        return type.ToString() + map.ToString() + players.ToString() + max.ToString() + ip + delimeters.slisting + port + delimeters.slisting + playername + delimeters.slisting + gamename + delimeters.slisting + description + delimeters.slisting + uuid;
+    }
+}
+public struct mmcodes
+{
+    public const char
+        get = 'm',
+        create = 'c'
+    ;
+}
+
+public struct delimeters
+{
+    //char array is used to string.Split(delimeters.listing) on client...
+    //string is used to build string to send separted by these delimeters from server
+    //listing is what splits all the elements of the listing
+    //listingGroups is what separates each of these listings from each other
+
+    public static char[] listing = { '¨' };
+    public static string slisting = "¨"; //string version... messy
+
+    public static char[] listingGroups = {'±'};
+    public static string slistingGroups = "±";//string version... messy
+
+
+
+    public const char
+        wildcard = '*',
+        create = '~'
+    ;
+
+    public static string
+        swildcard = "*",
+        screate = "~"
+    ;
+
+    public const string
+        numwildcard = "000" //wildcard used on numbers of players for sorting
+    ;
+}
+public struct sortBy
+{
+    public const char
+        date = 'd',
+        type = 't',
+        map = 'M',
+        max = 'm',
+        players = 'p',
+        playername = 'n',
+        gamename = 'N',
+        description = 'D'
+        ;
+}
+
+
+
 
 public class MMClient : MonoBehaviour {
 
@@ -49,7 +120,6 @@ public class MMClient : MonoBehaviour {
 
 
     static WebSocket ws;
-    //public string serverAddress = "ws://echo.websocket.org"; //set to place where MMServer is running
     public string serverAddress = "localhost:9002"; //example
 
     List<MessageEventArgs> messageQueue = new List<MessageEventArgs>(); //used so we can technically call things from the main thread like Instantiate... not really important to do it faster than the next frame because this is only matchmaking.
@@ -59,14 +129,7 @@ public class MMClient : MonoBehaviour {
 
     public void Start()
     {
-
-        //id = Ext.GUIDX(16);
-
         // worker.DoWork += new DoWorkEventHandler(backgroundWorker1_DoWork);
-
-
-        //DebugGameListing();
-        // StartCoroutine(DebugGameListing2());
 
         StartMM(serverAddress);
 
@@ -181,44 +244,6 @@ public class MMClient : MonoBehaviour {
         Debug.Log("disconnected from matchmaking");
     }
 
-    static void DebugGameListing()
-    {
-        Debug.Log("making fake listing");
-        string temp;
-        for(int i = 0; i < 30; i++)
-        {
-            temp = "name" + Ext.RandomString(8, 0.15f);
-            listings.Add(temp, new listing(
-                DateTime.Now,
-                'a',
-                'b',
-                UnityEngine.Random.Range(0, 32).ToString(),
-                UnityEngine.Random.Range(0, 32).ToString(),
-                Ext.RandomString(10, 0.15f),
-                Ext.RandomString(5, 0.15f),
-                temp,
-                Ext.RandomString(15, 0.15f),
-                Ext.RandomString(20, 0.15f),
-                Ext.RandomGUID()
-                ));
-        }
-        onReceiveGames(listings);
-    }
-
-    
-    static IEnumerator DebugGameListing2()
-    {
-        /*
-        Debug.Log("asking to make fake listings");
-
-        for(int i = 0; i < 40; i++)
-        {
-            MMClient.instance.CreateGame(new listing(DateTime.Now, Ext.RandomLetter(), Ext.RandomLetter(), UnityEngine.Random.Range(0, 999).ToString(), UnityEngine.Random.Range(0, 999).ToString(), UnityEngine.Random.Range(0, short.MaxValue).ToString(), UnityEngine.Random.Range(0, short.MaxValue).ToString(), Ext.RandomString(16, 0.08f), Ext.RandomString(20, 0.15f), Ext.RandomString(40, 0.15f), Ext.RandomString(20, 0.15f)));
-            yield return new WaitForSeconds(2f);
-        }
-        */
-        return null;
-    }
 
     public void SetFilter()
     {
