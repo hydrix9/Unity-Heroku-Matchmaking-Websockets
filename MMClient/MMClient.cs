@@ -7,6 +7,7 @@ using UnityEngine;
 using WebSocketSharp;
 using WebSocketSharp.Net;
 
+
 public struct listing
 {
     public DateTime date;
@@ -43,7 +44,7 @@ public struct delimeters
     public static char[] listing = { '¨' };
     public static string slisting = "¨"; //string version... messy
 
-    public static char[] listingGroups = {'±'};
+    public static char[] listingGroups = { '±' };
     public static string slistingGroups = "±";//string version... messy
 
 
@@ -75,9 +76,6 @@ public struct sortBy
         description = 'D'
         ;
 }
-
-
-
 
 public class MMClient : MonoBehaviour {
 
@@ -118,21 +116,41 @@ public class MMClient : MonoBehaviour {
     public static OnReceiveGames onReceiveGames;
 
 
-
+    /* SERVER sent fetch code below. On client create code, there is no asking for specific sorting. The IP is also deduced from server for security. Therefore, it is the same as below except without sending IP and sorting data.
+     * 
+    * first char is mmcode, second is game type (if any), third is game map (if any), next three chars are number of players max, next three are number of players,
+    * then there's a char for the sorting type. Whether this char is uppercase or lowercase determines if it's uppercase or lowercase
+    * the possible options are N number players, M max players
+    * then there's the ip, port, game host player name, game name, and description which are separated by delimeter
+    * 
+    */
     static WebSocket ws;
+    //public string serverAddress = "ws://echo.websocket.org"; //set to place where MMServer is running
     public string serverAddress = "localhost:9002"; //example
 
     List<MessageEventArgs> messageQueue = new List<MessageEventArgs>(); //used so we can technically call things from the main thread like Instantiate... not really important to do it faster than the next frame because this is only matchmaking.
 
 
+    public Client c;
     BackgroundWorker worker;
 
     public void Start()
     {
-        // worker.DoWork += new DoWorkEventHandler(backgroundWorker1_DoWork);
+        c = GetComponent<Client>();
+        //id = Ext.GUIDX(16);
 
-        StartMM(serverAddress);
+// worker.DoWork += new DoWorkEventHandler(backgroundWorker1_DoWork);
 
+#if UNITY_WEBGL
+
+#else
+        StartMM(OfflineGUI.instance.mmServerInput.text);
+#endif
+        //DebugGameListing();
+        // StartCoroutine(DebugGameListing2());
+
+        if (OfflineGUI.instance.mmServerInput != null)
+            OfflineGUI.instance.mmServerInput.onEndEdit.AddListener(StartMM);
     }
 
     private void Update()
@@ -150,6 +168,8 @@ public class MMClient : MonoBehaviour {
     {
         if (ws != null && ws.IsAlive)
             return;
+        Debug.Log("freeze4");
+
 
         ws = new WebSocket("ws://" + server);
         // Set the WebSocket events.
@@ -164,7 +184,9 @@ public class MMClient : MonoBehaviour {
         ws.OnClose += (sender, e) => HandleClose(sender, ref e);
 
         initialized = true;
+        Debug.Log("freeze3");
         ws.Connect();
+
 
     }
 
@@ -222,7 +244,9 @@ public class MMClient : MonoBehaviour {
     {
         while(ws == null || !ws.IsAlive && reconnecting)
         {
-            MMClient.instance.StartMM(MMClient.instance.serverAddress);
+            Debug.Log("freeze1");
+            MMClient.instance.StartMM(OfflineGUI.instance.mmServerInput.text);
+            Debug.Log("freeze2");
             yield return new WaitForSeconds(tryReconInterval);
         }
         reconnecting = false;
@@ -244,6 +268,44 @@ public class MMClient : MonoBehaviour {
         Debug.Log("disconnected from matchmaking");
     }
 
+    static void DebugGameListing()
+    {
+        Debug.Log("making fake listing");
+        string temp;
+        for(int i = 0; i < 30; i++)
+        {
+            temp = "name" + Ext.RandomString(8, 0.15f);
+            listings.Add(temp, new listing(
+                DateTime.Now,
+                'a',
+                'b',
+                UnityEngine.Random.Range(0, 32).ToString(),
+                UnityEngine.Random.Range(0, 32).ToString(),
+                Ext.RandomString(10, 0.15f),
+                Ext.RandomString(5, 0.15f),
+                temp,
+                Ext.RandomString(15, 0.15f),
+                Ext.RandomString(20, 0.15f),
+                Ext.RandomGUID()
+                ));
+        }
+        onReceiveGames(listings);
+    }
+
+    
+    static IEnumerator DebugGameListing2()
+    {
+        /*
+        Debug.Log("asking to make fake listings");
+
+        for(int i = 0; i < 40; i++)
+        {
+            MMClient.instance.CreateGame(new listing(DateTime.Now, Ext.RandomLetter(), Ext.RandomLetter(), UnityEngine.Random.Range(0, 999).ToString(), UnityEngine.Random.Range(0, 999).ToString(), UnityEngine.Random.Range(0, short.MaxValue).ToString(), UnityEngine.Random.Range(0, short.MaxValue).ToString(), Ext.RandomString(16, 0.08f), Ext.RandomString(20, 0.15f), Ext.RandomString(40, 0.15f), Ext.RandomString(20, 0.15f)));
+            yield return new WaitForSeconds(2f);
+        }
+        */
+        return null;
+    }
 
     public void SetFilter()
     {
@@ -272,14 +334,23 @@ public class MMClient : MonoBehaviour {
     public void FetchGames()
     {
         ws.Send(
-            mmcodes.get.ToString() + wantedGameType.ToString() + wantedGameMap.ToString() + PadInt(wantedMaxPlayers, 3) + wantedSortType.ToString() + NetworkInterface.serverGUID //send what we specified. playermax is padded to always be 3 characters
+            mmcodes.get.ToString() + wantedGameType.ToString() + wantedGameMap.ToString() + Ext.PadInt(wantedMaxPlayers, 3) + wantedSortType.ToString() + NetworkInterface.serverGUID //send what we specified. playermax is padded to always be 3 characters
         );
     }
-    
-    /*
+
+    /* SERVER sent fetch code below. On client create code, there is no asking for specific sorting. The IP is also deduced from server for security. Therefore, it is the same as below except without sending IP and sorting data.
+     * 
+     * first char is mmcode, second is game type (if any), third is game map (if any), next three chars are number of players max, next three are number of players,
+     * then there's a char for the sorting type. Whether this char is uppercase or lowercase determines if it's uppercase or lowercase
+     * the possible options are N number players, M max players
+     * then there's the ip, port, game host player name, game name, and description which are separated by delimeter
+     * 
+     */
+
+        /*
     public void CreateGame(char gameType, char gameMap, int playersMax, int startPlayers, string port, string playerName, string gameName, string description)
     {
-        string sends = mmcodes.create.ToString() + gameType.ToString() + gameMap.ToString() + PadInt(playersMax, 3) + PadInt(startPlayers, 3) + 
+        string sends = mmcodes.create.ToString() + gameType.ToString() + gameMap.ToString() + Ext.PadInt(playersMax, 3) + Ext.PadInt(startPlayers, 3) + 
             port
             //NetworkInterface.serverGUID
             + delimeters.screate + playerName + delimeters.screate + gameName + delimeters.screate + description;
@@ -332,7 +403,7 @@ public class MMClient : MonoBehaviour {
     //update the serialized version that's being sent to server
     public void SerializeHostedGame()
     {
-        serializedGame = mmcodes.create.ToString() + hostedGame.type.ToString() + hostedGame.map.ToString() + PadInt(int.Parse(hostedGame.max), 3) + PadInt(int.Parse(hostedGame.players), 3) +
+        serializedGame = mmcodes.create.ToString() + hostedGame.type.ToString() + hostedGame.map.ToString() + Ext.PadInt(int.Parse(hostedGame.max), 3) + Ext.PadInt(int.Parse(hostedGame.players), 3) +
             hostedGame.port
             //NetworkInterface.serverGUID
             + delimeters.screate + hostedGame.playername + delimeters.screate + hostedGame.gamename + delimeters.screate + hostedGame.description;
@@ -398,110 +469,6 @@ public class MMClient : MonoBehaviour {
             onReceiveGames(new Dictionary<string, listing>(listings)); //pass copy to avoid read/write errors to OfflineGUI
     }
 
-    
-    
-    /*
-    -----------
-    Example of how to handle the above code
-    -----------
-    
-    Dictionary<string, RectTransform> listingObjMap = new Dictionary<string, RectTransform>();
-
-    //from MMClient.onReceiveGames
-    private void ReceiveGames(Dictionary<string, listing> listings)
-    {
-        //for reference-     public listing(DateTime _date, char _type, char _map, int _max, int _players, string _ip, string _port, string _playername, string _gamename, string _description)
-
-        //list games
-
-
-        //remove old
-        foreach(KeyValuePair<string,RectTransform> entry in listingObjMap)
-        {
-            if(!listings.ContainsKey(entry.Key)) //if updated list in listings doesn't have... remove it and it's object
-            {
-                GameObject.Destroy(entry.Value.gameObject); //delete listings obj
-                listingObjMap.Remove(entry.Key); //remove from map
-            }
-        }
-        
-
-        int i = 0;
-
-        foreach(KeyValuePair<string, listing> entry in listings)
-        {
-            RectTransform temp;
-            if(listingObjMap.ContainsKey(entry.Key))
-            {
-                temp = listingObjMap[entry.Key]; //working with already created... merely overwrite values
-            } else
-            {
-                //doesn't exist, create...
-                temp = ((GameObject)(Ext.Instantiate(listingObject, listingContentArea))).GetComponent<RectTransform>();
-
-                if (oneClickJoinListing)
-                    temp.GetChild(8).GetComponent<Button>().onClick.AddListener(delegate { JoinGame(entry.Value); }); //add button function
-                else
-                    temp.GetChild(8).GetComponent<Button>().onClick.AddListener(delegate { SetSelectedGame(entry.Value, temp); }); //add button function
-
-                listingObjMap.Add(entry.Key, temp); //add to reference
-
-            }
-
-            temp.GetChild(0).GetComponent<Text>().text = entry.Value.type.ToString(); //set 
-            temp.GetChild(1).GetComponent<Text>().text = entry.Value.map.ToString(); //set
-            temp.GetChild(2).GetComponent<Text>().text = entry.Value.max.ToString(); //set 
-            temp.GetChild(3).GetComponent<Text>().text = entry.Value.players.ToString(); //set 
-            temp.GetChild(4).GetComponent<Text>().text = entry.Value.ip; //set 
-            temp.GetChild(5).GetComponent<Text>().text = entry.Value.port; //set 
-            temp.GetChild(6).GetComponent<Text>().text = entry.Value.playername; //set 
-            temp.GetChild(7).GetComponent<Text>().text = entry.Value.gamename; //set 
-            temp.GetChild(7).GetComponent<Text>().text = entry.Value.description; //set 
-
-            if (i % 2 == 0) //every other one
-                temp.GetChild(8).GetComponent<Image>().color = stripeColor; //make it striped
-            else
-                temp.GetChild(8).GetComponent<Image>().color = normalListingColor; // make it normal
-
-            temp.anchoredPosition = listingObject.GetComponent<RectTransform>().anchoredPosition; //reset for lazy calcs...
-
-            temp.position += new Vector3(0, i * (-listingObject.GetComponent<RectTransform>().rect.height - listingEntryPadding), 0);
-            temp.gameObject.SetActive(true);
-
-
-
-
-            i++;
-        }
-        
-
-
-        listingContentArea.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, listings.Count * (listingObject.GetComponent<RectTransform>().rect.height + listingEntryPadding));
-
-    }
-    */
-    
-    
-    
-    
-    
-    
-        /// <summary>
-    /// return a number as a string padded with zeros to fit a certain length for networking
-    /// </summary>
-    /// <param name="number"></param>
-    /// <param name="length"></param>
-    /// <returns></returns>
-    public string PadInt(int number, int length) {
-        string returns = number.ToString();
-
-        while (returns.Length < length)
-        {
-            returns = "0" + returns;
-        }
-        return returns;
-
-    }
 
 
 } //end class
