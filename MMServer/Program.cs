@@ -1,7 +1,4 @@
-//#define buildtest
-
-
-//this should run from the console. There is a preprocessor directive set to make Console.ReadKey uncommented to make this work. It is commented for standard build types because it causes an error to these builds.
+#define buildtest
 
 
 using System;
@@ -11,12 +8,17 @@ using WebSocketSharp.Server;
 using System.Collections.Generic; //lists
 using System.Linq; //dictionary keys toarray
 using System.Collections; //enumerator
+using System.Linq.Expressions;
+using MongoDB.Bson.Serialization.Attributes;
+using System.Threading;
 
 #if buildtest
 using MongoDB.Bson;
 using MongoDB.Bson.IO;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
+
+
 
 /*
 public struct fetchGamesPacket {
@@ -33,29 +35,46 @@ public struct fetchGamesPacket {
     }
 }*/
 
-
-
-
 #endif
 //an element which represents a hosted game
-#if test
-public struct listing
-{
-    public DateTime date;
-    public char type, map;
-    public string max, players;
-    public string ip, port, playername, gamename, description;
-    public string uuid;
+//mongodb apparently has an issue deserializing structs, otherwise I might use that
 
-    public listing(DateTime _date, char _type, char _map, string _max, string _players, string _ip, string _port, string _playername, string _gamename, string _description, string _uuid)
+public class listing
+{
+    //names are truncated to save on significant bandwidth to mongodb server
+    [BsonIgnoreIfDefault]
+    public ObjectId _id; //id in mongodb
+    public DateTime d; //date
+    public char t, M; //type, map
+    public string m, p; //max, players
+    public string I, P, n, N, D; //ip, port, playername, gamename, description
+
+    public string u; //uuid
+
+    public listing(DateTime _date, char _type, char _map, string _max, string _players, string _ip, string _port, string _playername, string _gamename, string _description, string uuid)
     {
-        date = _date; type = _type; map = _map; max = _max; players = _players; ip = _ip; port = _port; playername = _playername; gamename = _gamename; description = _description; uuid = _uuid;
+        d = _date; t = _type; M = _map; m = _max; p = _players; I = _ip; P = _port; n = _playername; N = _gamename; D = _description;
+        //_id = MongoDB.Bson.ObjectId.GenerateNewId(DateTime.Now);
+        u = uuid; //UUID of client
+    }
+    public listing(DateTime _date, char _type, char _map, string _max, string _players, string _ip, string _port, string _playername, string _gamename, string _description, string uuid, ObjectId _id)
+    {
+        d = _date; t = _type; M = _map; m = _max; p = _players; I = _ip; P = _port; n = _playername; N = _gamename; D = _description;
+        //this._id = _id;
+        u = uuid; //UUID of client
     }
 
     public override string ToString()
     {
-        return type.ToString() + map.ToString() + players.ToString() + max.ToString() + ip + delimeters.slisting + port + delimeters.slisting + playername + delimeters.slisting + gamename + delimeters.slisting + description + delimeters.slisting + uuid;
+
+        return t.ToString() + M.ToString() + p.ToString() + m.ToString() + I + delimeters.slisting + P + delimeters.slisting + n + delimeters.slisting + N + delimeters.slisting + D + delimeters.slisting + u;
     }
+
+    //empty list reference
+    public static readonly listing empty = new listing(default(DateTime), default(char), default(char), null, null, null, null, null, null, null, null);
+
+    //used for testing against null in some cases where we need to check to see if we can resolve a property name
+    public static readonly listing dummy = new listing(DateTime.Now, 'T', 'T', "1", "T", "127.0.0.1", "41389", "dummy", "dummygame", "description", "dummyID");
 }
 public struct mmcodes
 {
@@ -75,7 +94,7 @@ public struct delimeters
     public static char[] listing = { '¨' };
     public static string slisting = "¨"; //string version... messy
 
-    public static char[] listingGroups = {'±'};
+    public static char[] listingGroups = { '±' };
     public static string slistingGroups = "±";//string version... messy
 
 
@@ -107,7 +126,7 @@ public struct sortBy
         description = 'D'
         ;
 }
-#endif
+
 
 #if buildtest
 
@@ -133,46 +152,173 @@ namespace WSSServer
     public class MMServer : WebSocketBehavior
     {
 
+        const int idLength = 16; //16 bytes for UUID....
 
-        int numReturns = 10; //number of game listings to return;
+        public static MongoClient mongoClient;
+        public static IMongoDatabase main;
+        public static IMongoCollection<listing> games;
 
-        //listing struct is on MMClient
+        static FindOneAndReplaceOptions<listing> updateOptions;
 
-        //the strategy to avoid read/write errors is to use the below variable to switch reference between the lower two.
-        //we copy from A to B, switch the reference of the tool variable to B,  remove the old values from A, then switch it back and add all that were added in the meantime on B to A
-        //Dictionary is a class and therefore pass
-        //ed by reference, but we need to copy over the values between every switch.
-        //key is ip+port
-        public static Dictionary<string, listing> listings = new Dictionary<string, listing>();
+        static bool mongoSetup;
+        public static void SetupMongo(string connectionString, string dbName)
+        {
+            if (mongoSetup)
+                return;
+            mongoSetup = true; //prevent second init
 
-		public static Dictionary<string, listing> listingsA = new Dictionary<string, listing>();
-		public static Dictionary<string, listing> listingsB = new Dictionary<string, listing>(); //use a temp to avoid read/write errors on a dictionary
+            // Create a MongoClient object by using the connection string
+            mongoClient = new MongoClient(connectionString);
 
-		protected override void OnMessage (MessageEventArgs e)
-		{
-			Console.WriteLine ("received from " + Context.UserEndPoint.Address.ToString() + ":" + Context.UserEndPoint.Port.ToString() + " with data: " + e.Data + "\n binary: " + BitConverter.ToString(e.RawData));
+            // Use the client to access the 'test' database
+            main = mongoClient.GetDatabase(dbName);
+            games = main.GetCollection<listing>("g");
+            updateOptions = new FindOneAndReplaceOptions<listing>();
+            updateOptions.IsUpsert = true;
+            updateOptions.ReturnDocument = ReturnDocument.After;
 
-            switch (e.Data[0]) {
-			    case mmcodes.get:
-                    HandleGet(e.Data);
-			        break;
-			    case mmcodes.create:
-                    HandleCreate(e.Data);
-				    break;
-			}
+        }
 
-			/*
-				var msg = e.Data == "BALUS"
-				? "I've been balused already..."
-				: "I'm not available now.";
+        protected override void OnMessage(MessageEventArgs e)
+        {
+            try {
+                Console.WriteLine("received data");
+                Console.WriteLine("received from " + Context.UserEndPoint.Address.ToString() + ":" + Context.UserEndPoint.Port.ToString() + " with data: " + e.Data + "\n binary: " + BitConverter.ToString(e.RawData));
 
-				Send (msg);
-			*/
-			
-		} //end `
+                switch (e.Data[0])
+                {
+                    case mmcodes.get:
+                        HandleGet(e.Data.Substring(0, e.Data.Length - idLength), e.Data.Substring(e.Data.Length - idLength, idLength)); //separate DATA and ID
+                        break;
+                    case mmcodes.create:
+                        HandleCreate(e.Data.Substring(0, e.Data.Length - idLength), e.Data.Substring(e.Data.Length - idLength, idLength)); //separate DATA and ID
+                        break;
+                }
+            } catch (ObjectDisposedException ex) {
+                Console.WriteLine("caught error: \n" + ex);
+            }
+
+
+    /*
+        var msg = e.Data == "BALUS"
+        ? "I've been balused already..."
+        : "I'm not available now.";
+
+        Send (msg);
+    */
+
+} //end `
+
+
+        //used for sorting games...
+        readonly SortDefinitionBuilder<listing> sort = new SortDefinitionBuilder<listing>();
+
+        async void HandleGet(string data, string id)
+        {
+
+            if (data.Length < 7)
+            {
+                Console.WriteLine("get input was too short at" + data.Length);
+                return;
+            }
+
+            var builder = Builders<listing>.Filter;
+
+
+            string thenby = sortBy.players.ToString(); //set second sort by initially to sort secondarily to current num of players...
+            //if we're actually requested to sort by that already, sort secondarily by max players instead
+            if (data[6] == sortBy.players)
+            {
+                thenby = sortBy.max.ToString();
+            }
+
+            //sanity check input of requested sort type to avoid some null reference exceptions
+            if (listing.dummy.GetType().GetField(data[6].ToString()) == null || listing.dummy.GetType().GetField(thenby) == null)
+            {
+                //invalid sort request input from user
+                //throw new ArgumentOutOfRangeException();
+
+                Console.WriteLine("invalid sort type requested: " + data[6].ToString());
+                return;
+            }
+
+            List<listing> membersList =
+             await
+                 games.Find(new BsonDocument())
+                     .Sort(sort.Descending(data[6].ToString()))
+                     .Sort(sort.Descending(thenby))
+                     .Limit(Program.numReturns)
+                     .ToListAsync();
 
 
 
+            Console.WriteLine("found " + membersList.Count + " games");
+
+            Send(
+                mmcodes.get.ToString() + String.Join(delimeters.slistingGroups, membersList) //send each listing separated by delimeter, each listing being converted to string
+                );
+
+        } //end HandleGet
+
+        async void HandleCreate(string data, string uuid)
+        {
+            var builder = Builders<listing>.Filter;
+
+            string[] split = data.Split(delimeters.create); //split by delimeter
+
+            if (split[0].Length < 10)
+            {
+                Console.WriteLine("create input length was too short at " + split[0].Length);
+                return;
+            }
+
+            //filter is where it is the same IP and port num
+            //EDIT: now UUID sent by client in the last 16 bytes... because otherwise websocket clients can't be distinguished by IP + PORT!
+            var filter =
+                builder.Eq(
+                    //Builders<listing>.Filter.Eq("I", Context.UserEndPoint.Address.ToString()),
+                    //Builders<listing>.Filter.Eq("P", data.Substring(9, data.IndexOf(delimeters.create) - 9))
+                    listing.dummy.u, uuid
+                    );
+
+
+            //upsert using filter
+            var results = await games.FindOneAndReplaceAsync<listing>(
+                doc => doc.u == uuid,
+                new listing(DateTime.Now, data[1], data[2], data.Substring(3, 3), data.Substring(6, 3), Context.UserEndPoint.Address.ToString(), data.Substring(9, data.IndexOf(delimeters.create) - 9), split[1], split[2], split[3], uuid),
+                updateOptions
+            );
+
+            Console.WriteLine("replace results: " + results);
+        }
+
+        async void HandleRemove(string data, string uuid)
+        {
+            var builder = Builders<listing>.Filter;
+
+            //filter is where it is the same IP and port num
+            //EDIT: now UUID
+            var filter =
+                builder.Eq(
+                    //Builders<listing>.Filter.Eq("I", Context.UserEndPoint.Address.ToString()),
+                    //Builders<listing>.Filter.Eq("P", data.Substring(1, data.Length - 1))
+                    listing.dummy.u, uuid
+                    );
+
+
+            var results = await games.DeleteOneAsync(
+                filter
+                );
+
+            Console.WriteLine("deleted " + results.DeletedCount);
+        }
+
+
+
+
+
+        #region oldHandlers
+#if oldhandlers //if using...
         /* SERVER sent fetch code below. On client create code, there is no asking for specific sorting. The IP is also deduced from server for security. Therefore, it is the same as below except without sending IP and sorting data.
          * 
         * first char is mmcode, second is game type (if any), third is game map (if any), next three chars are number of players max, next three are number of players,
@@ -182,7 +328,7 @@ namespace WSSServer
         * 
         */
 
-        void HandleGet(string data)
+        void HandleGet_Old(string data)
         {
             if (listings.Count == 0)
                 return; //no games
@@ -192,7 +338,7 @@ namespace WSSServer
             //TODO: if looping add host to a list of people to notify when it finishes...
             int num = numReturns; //number of listings to return
 
-            foreach(listing l in listings.Values)
+            foreach (listing l in listings.Values)
             {
                 //do checks for gametype filtering
                 if (data[1] != delimeters.wildcard && data[1] != l.type) //if data[1] (the game type) isn't wildcard (meaning doesn't matter) AND we don't have the same game type
@@ -231,7 +377,7 @@ namespace WSSServer
         * then there's the ip, port, game host player name, game name, and description which are separated by delimeter
         * 
         */
-        void HandleCreate(string data)
+        void HandleCreate_Old(string data)
         {
             Console.WriteLine("received create game: " + data.Substring(1, data.Length - 1));
             string[] split = data.Split(delimeters.create); //split by delimeter
@@ -253,96 +399,70 @@ namespace WSSServer
 
 
 
-           // Console.WriteLine("new game: " + listings[Context.UserEndPoint.Address.ToString() + ":" + data.Substring(9, data.IndexOf(delimeters.create) - 9)].ToString());
+            // Console.WriteLine("new game: " + listings[Context.UserEndPoint.Address.ToString() + ":" + data.Substring(9, data.IndexOf(delimeters.create) - 9)].ToString());
         }
 
-        void HandleRemove(string data)
+        void HandleRemove_Old(string data)
         {
-            if(listings.ContainsKey(data.Substring(1, data.Length - 1))) {
+            if (listings.ContainsKey(data.Substring(1, data.Length - 1)))
+            {
                 listings.Remove(data.Substring(1, data.Length - 1));
             }
         }
+#endif
+        #endregion
+
+
 
     } // end class server
 
-	public class Program
-	{
-		
-		const int gameTimeoutSecs = 600;
-		static ushort port = 9002;
-
-		public static void Main (string[] args)
-		{
-
-            MMServer.listings = MMServer.listingsA; //assign reference pointer
-
-            //start timer to check outdated listings
-			var timer = new System.Threading.Timer((e) =>
-				{
-					CheckOutdated();   
-				}, null, TimeSpan.Zero, TimeSpan.FromMinutes(1));
-			
+    public class Program
+    {
 
 
-			Console.WriteLine ("...listening on port " + port + "...");
+        const int gameTimeoutSecs = 600;
+        static int port = 9002; //host port
 
-			var wssv = new WebSocketServer (port);
+        const string connectionString = "mongodb://heroku_ : .mlab.com: /";
+        const string dbName = "heroku_";
 
-			wssv.AddWebSocketService<MMServer> (
-				"/",
-				() =>
-				new MMServer () {
-					// To ignore the extensions requested from a client.
-					IgnoreExtensions = true
-				}
-			);
+        public static int numReturns = 10; //number of game listings to return on a request
 
 
-			wssv.Start ();
-#if !UNITY_EDITOR && !UNITY_WEBGL && !UNITY_STANDALONE_WIN && !UNITY_STANDALONE_OSX && !UNITY_STANDALONE_LINUX
-			Console.ReadKey (true);
-#endif
-            wssv.Stop ();
-		} //end Main
+        public static void Main(string[] args)
+        {
+            MMServer.SetupMongo(connectionString, dbName); //init
 
+            int listenPort;
+            if (!int.TryParse(Environment.GetEnvironmentVariable("PORT"), out listenPort))
+                listenPort = port;
 
-        //check if games have expired from their x minute listing time
-        static void CheckOutdated() {
-            //basically we change the reference to a temp, modify the original, then do a staged copy of the new ones so we don't miss anything 
+            Console.WriteLine("...listening on port " + listenPort + "...");
 
-            if (MMServer.listings.Count < 1)
-                return; //no listings
-
-			Console.WriteLine ("checking " + MMServer.listings.Count + " dates...");
+            var wssv = new HttpServer(listenPort, false);
             
-            MMServer.listingsB = new Dictionary<string, listing>(MMServer.listingsA); //copy by value
-            MMServer.listings = MMServer.listingsB; //change reference
-
-            //OPTIMIZE: Cache DateTime.Now?
-            foreach (KeyValuePair<string, listing> l in MMServer.listingsA) { //iterate over A
-                if (DateTime.Now.Subtract(l.Value.date).TotalSeconds >= gameTimeoutSecs) //if outdated
-                    MMServer.listingsA.Remove(l.Key); //remove
-            }
+            
+            wssv.AddWebSocketService<MMServer>(
+                "/MM"
+            );
 
 
-            MMServer.listings = MMServer.listingsA; //change back to one we modified
+            wssv.KeepClean = false;
 
-            //add back new entries since time processing above
-            foreach (KeyValuePair<string, listing> l in MMServer.listingsB)
-            { //iterate over B
-                if (!MMServer.listings.ContainsKey(l.Key) && DateTime.Now.Subtract(l.Value.date).TotalSeconds >= gameTimeoutSecs) //if not exists in A and it isn't outdated, add
-                    MMServer.listings.Add(l.Key, l.Value);
-                //we have to check if the keys are outdated on both because we simply can't modify one of them. Secondly, it could have gotten refreshed by the player on the time during the processing time
-            }
+                wssv.Start();
+                //Console.ReadKey(true);
+                Console.ReadLine ();
+                while(true)
+                {
+                    Thread.Sleep(2);
+                }
 
-
-        } //end CheckOutdated
+#endif
+                wssv.Stop();
+        } //end Main
 
 
 
-	} //end class Program
+    } //end class Program
 
 } //end namespace
-
-#endif
-
