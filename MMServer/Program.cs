@@ -199,15 +199,7 @@ namespace WSSServer
             }
 
 
-    /*
-        var msg = e.Data == "BALUS"
-        ? "I've been balused already..."
-        : "I'm not available now.";
-
-        Send (msg);
-    */
-
-} //end `
+} //end
 
 
         //used for sorting games...
@@ -312,107 +304,6 @@ namespace WSSServer
 
             Console.WriteLine("deleted " + results.DeletedCount);
         }
-
-
-
-
-
-        #region oldHandlers
-#if oldhandlers //if using...
-        /* SERVER sent fetch code below. On client create code, there is no asking for specific sorting. The IP is also deduced from server for security. Therefore, it is the same as below except without sending IP and sorting data.
-         * 
-        * first char is mmcode, second is game type (if any), third is game map (if any), next three chars are number of players max, next three are number of players,
-        * then there's a char for the sorting type. Whether this char is uppercase or lowercase determines if it's uppercase or lowercase
-        * the possible options are N number players, M max players
-        * then there's the ip, port, game host player name, game name, and description which are separated by delimeter
-        * 
-        */
-
-        void HandleGet_Old(string data)
-        {
-            if (listings.Count == 0)
-                return; //no games
-
-            string returns = mmcodes.get.ToString();
-
-            //TODO: if looping add host to a list of people to notify when it finishes...
-            int num = numReturns; //number of listings to return
-
-            foreach (listing l in listings.Values)
-            {
-                //do checks for gametype filtering
-                if (data[1] != delimeters.wildcard && data[1] != l.type) //if data[1] (the game type) isn't wildcard (meaning doesn't matter) AND we don't have the same game type
-                    continue; //dont add to returns
-                if (data[2] != delimeters.wildcard && data[2] != l.map) //if data[2] (the game map) isn't wildcard (meaning doesn't matter) AND we don't have the same game map
-                    continue; //dont add to returns
-                if (data.Substring(3, 3) != delimeters.numwildcard && int.Parse(l.max) < int.Parse(data.Substring(3, 3))) //if it matters and we didn't meet minimum players of iterated entry l
-                    continue;
-
-                //TODO: sorting by player number / max... would basically have to loop through all and organize them according to player number or cache it (better)
-                //lists are passed by reference so this would be good
-
-
-                returns += l.ToString() + delimeters.slistingGroups; //see listing.ToString()
-
-
-                num--;
-                if (num == 0) //reached end of numReturns
-                    break;
-            }
-
-            if (returns.Length > 2) //if it's safe to do so, remove the delimeter.slistingGroups on the end so we don't waste bandwidth and get an index error on the client from trying to read the last (blank) entry
-                returns = returns.Substring(0, returns.Length - delimeters.slistingGroups.Length);
-
-            Send(returns);
-
-        }
-
-
-        //code sent to this point by client::   string sends = mmcodes.create.ToString() + gameType.ToString() + gameMap.ToString() + Tools.PadInt(playersMax, 3) + Tools.PadInt(startPlayers, 3) + port + delimeters.create.ToString() + playerName + delimeters.create.ToString() + gameName + delimeters.create.ToString() + description;
-        /* SERVER sent fetch code below. On client create code, there is no asking for specific sorting. The IP is also deduced from server for security. Therefore, it is the same as below except without sending IP and sorting data.
-         * 
-        * first char is mmcode, second is game type (if any), third is game map (if any), next three chars are number of players max, next three are number of players,
-        * then there's a char for the sorting type. Whether this char is uppercase or lowercase determines if it's uppercase or lowercase
-        * the possible options are N number players, M max players
-        * then there's the ip, port, game host player name, game name, and description which are separated by delimeter
-        * 
-        */
-        void HandleCreate_Old(string data)
-        {
-            Console.WriteLine("received create game: " + data.Substring(1, data.Length - 1));
-            string[] split = data.Split(delimeters.create); //split by delimeter
-                                                            //add to dictionary where key is ip+port
-
-            //data[1] will read second char... split[1] will read second chunk separated above by delimeter
-            //data.Substring(9, data.IndexOf(delimeters.create) - 9) will read from the 9th position to the first delimeter. This should be the port
-            //split[0] should be several fields of data with a fixed length which don't need delimeter separation- from the first char (mmcode) to the max players. Then IP is inferred... data.Substring(9, data.IndexOf(delimeters.create) - 9)
-
-            //Console.WriteLine("port: " + data.Substring(9, data.IndexOf(delimeters.create) - 9));
-
-            if (!listings.ContainsKey(Context.UserEndPoint.Address.ToString() + ":" + data.Substring(9, data.IndexOf(delimeters.create) - 9)))
-                listings.Add(
-                    Context.UserEndPoint.Address.ToString() + ":" + data.Substring(9, data.IndexOf(delimeters.create) - 9), //key
-                    new listing(DateTime.Now, data[1], data[2], data.Substring(3, 3), data.Substring(6, 3), Context.UserEndPoint.Address.ToString(), data.Substring(9, data.IndexOf(delimeters.create) - 9), split[1], split[2], split[3]) //value
-                    );
-            else
-                listings[Context.UserEndPoint.Address.ToString() + ":" + data.Substring(9, data.IndexOf(delimeters.create) - 9)] = new listing(DateTime.Now, data[1], data[2], data.Substring(3, 3), data.Substring(6, 3), Context.UserEndPoint.Address.ToString(), data.Substring(9, data.IndexOf(delimeters.create) - 9), split[1], split[2], split[3]); //assignment
-
-
-
-            // Console.WriteLine("new game: " + listings[Context.UserEndPoint.Address.ToString() + ":" + data.Substring(9, data.IndexOf(delimeters.create) - 9)].ToString());
-        }
-
-        void HandleRemove_Old(string data)
-        {
-            if (listings.ContainsKey(data.Substring(1, data.Length - 1)))
-            {
-                listings.Remove(data.Substring(1, data.Length - 1));
-            }
-        }
-#endif
-        #endregion
-
-
 
     } // end class server
 
