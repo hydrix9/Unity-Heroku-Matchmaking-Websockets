@@ -238,6 +238,7 @@ public class MMClient : MonoBehaviour {
         refreshListing = default(CoroutineHandle);
     }
 
+
     static bool reconnecting = false;
     public static float tryReconInterval = 5f;
     static IEnumerator Reconnect()
@@ -268,6 +269,7 @@ public class MMClient : MonoBehaviour {
         Debug.Log("disconnected from matchmaking");
     }
 
+    /*
     static void DebugGameListing()
     {
         Debug.Log("making fake listing");
@@ -290,22 +292,9 @@ public class MMClient : MonoBehaviour {
                 ));
         }
         onReceiveGames(listings);
-    }
+    }*/
 
-    
-    static IEnumerator DebugGameListing2()
-    {
-        /*
-        Debug.Log("asking to make fake listings");
 
-        for(int i = 0; i < 40; i++)
-        {
-            MMClient.instance.CreateGame(new listing(DateTime.Now, Ext.RandomLetter(), Ext.RandomLetter(), UnityEngine.Random.Range(0, 999).ToString(), UnityEngine.Random.Range(0, 999).ToString(), UnityEngine.Random.Range(0, short.MaxValue).ToString(), UnityEngine.Random.Range(0, short.MaxValue).ToString(), Ext.RandomString(16, 0.08f), Ext.RandomString(20, 0.15f), Ext.RandomString(40, 0.15f), Ext.RandomString(20, 0.15f)));
-            yield return new WaitForSeconds(2f);
-        }
-        */
-        return null;
-    }
 
     public void SetFilter()
     {
@@ -338,32 +327,6 @@ public class MMClient : MonoBehaviour {
         );
     }
 
-    /* SERVER sent fetch code below. On client create code, there is no asking for specific sorting. The IP is also deduced from server for security. Therefore, it is the same as below except without sending IP and sorting data.
-     * 
-     * first char is mmcode, second is game type (if any), third is game map (if any), next three chars are number of players max, next three are number of players,
-     * then there's a char for the sorting type. Whether this char is uppercase or lowercase determines if it's uppercase or lowercase
-     * the possible options are N number players, M max players
-     * then there's the ip, port, game host player name, game name, and description which are separated by delimeter
-     * 
-     */
-
-        /*
-    public void CreateGame(char gameType, char gameMap, int playersMax, int startPlayers, string port, string playerName, string gameName, string description)
-    {
-        string sends = mmcodes.create.ToString() + gameType.ToString() + gameMap.ToString() + Ext.PadInt(playersMax, 3) + Ext.PadInt(startPlayers, 3) + 
-            port
-            //NetworkInterface.serverGUID
-            + delimeters.screate + playerName + delimeters.screate + gameName + delimeters.screate + description;
-        if (ws != null)
-            ws.Send(sends + id);
-        Debug.Log("sending " + sends);
-
-        if (refreshListing != default(CoroutineHandle))
-            Timing.KillCoroutines(refreshListing);
-        refreshListing = Timing.CallContinuously(refreshInterval, ()=> { ws.Send(sends + id); } );
-
-
-    }*/
 
     public void CreateGame(listing l)
     {
